@@ -29,6 +29,7 @@ const (
 	statBatchesTrasmitted   = "batchesTx"
 	statPointsTransmitted   = "pointsTx"
 	statBatchesTransmitFail = "batchesTxFail"
+	statDroppedPoints       = "droppedPoints"
 )
 
 // pointsWriter is an internal interface to make testing easier.
@@ -233,7 +234,7 @@ func (s *Service) handleMessage(buffer []byte) {
 		return
 	}
 	for _, packet := range *packets {
-		points := Unmarshal(&packet)
+		points := s.UnmarshalCollectd(&packet)
 		for _, p := range points {
 			s.batcher.In() <- p
 		}
@@ -266,7 +267,7 @@ func (s *Service) writePoints() {
 }
 
 // Unmarshal translates a collectd packet into InfluxDB data points.
-func Unmarshal(packet *gollectd.Packet) []models.Point {
+func (s *Service) UnmarshalCollectd(packet *gollectd.Packet) []models.Point {
 	// Prefer high resolution timestamp.
 	var timestamp time.Time
 	if packet.TimeHR > 0 {
@@ -302,8 +303,10 @@ func Unmarshal(packet *gollectd.Packet) []models.Point {
 			tags["type_instance"] = packet.TypeInstance
 		}
 		p, err := models.NewPoint(name, tags, fields, timestamp)
-		// Drop points values of NaN since they are not supported
+		// Drop invalid points
 		if err != nil {
+			s.Logger.Printf("Dropping point %v: %v", p.Name, err)
+			s.statMap.Add(statDroppedPoints, 1)
 			continue
 		}
 

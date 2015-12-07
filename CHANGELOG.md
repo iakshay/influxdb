@@ -4,6 +4,7 @@
 
 ### Bugfixes
 - [#5016](https://github.com/influxdb/influxdb/pull/5016): Don't panic if Meta data directory not writable. Thanks @oiooj
+- [#4622](https://github.com/influxdb/influxdb/issues/4622): Fix panic when passing too large of timestamps to OpenTSDB input.
 
 ## v0.9.6 [unreleased]
 
